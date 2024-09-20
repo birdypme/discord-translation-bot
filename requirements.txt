@@ -1,0 +1,3 @@
+discord
+google-cloud-translate
+python-dotenv
