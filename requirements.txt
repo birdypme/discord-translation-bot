@@ -1,3 +1,4 @@
+argostranslate
 discord
-google-cloud-translate
+langdetect
 python-dotenv

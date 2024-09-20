@@ -1,8 +1,10 @@
 import os
 
+import argostranslate.package
+import argostranslate.translate
 import discord
 from dotenv.main import load_dotenv
-from google.cloud import translate_v2
+import langdetect
 
 
 languages = {
@@ -53,13 +55,29 @@ languages = {
 
 class Translator:
     def __init__(self):
-        print(f'Connecting to Google Cloud with {os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")}')
-        self.client = translate_v2.Client()
+        print('Initializing Argos Translate package')
+        argostranslate.package.update_package_index()
+        self.available_packages = argostranslate.package.get_available_packages()
+        self.installed_packages = argostranslate.package.get_installed_packages()
+
+    def ensure_package(self, from_code: str, to_code: str):
+        for package in self.available_packages:
+            if package.from_code != from_code or package.to_code != to_code:
+                continue
+            if package in self.installed_packages:
+                break
+            print(f'Translator: Installing package {package}...')
+            argostranslate.package.install_from_path(package.download())
+            self.installed_packages.append(package)
+            break
+        else:
+            raise ValueError(f'Package not found: {from_code}->{to_code}')
 
     def translate(self, original_text: str, target_language: str) -> str:
-        result = self.client.translate(original_text, target_language=target_language)
-        # dict keys: input, translatedText, detectedSourceLanguage
-        return result['translatedText']
+        source_language = langdetect.detect(original_text)
+        self.ensure_package(source_language, target_language)
+        result = argostranslate.translate.translate(original_text, source_language, target_language)
+        return result
 
 
 def main():
@@ -72,24 +90,16 @@ def main():
 
     @client.event
     async def on_ready():
-        print(f'We logged in as {client.user}')
+        print(f'We logged in Discord as {client.user}')
 
     @client.event
     async def on_reaction_add(reaction, user):
-        print(f'got reaction {reaction} from {user}')
-        print(f'reaction.emoji={reaction.emoji}')
-        if not reaction.emoji:
-            return
-        
         target_language = languages.get(reaction.emoji)
-        print(f'target_language={target_language}')
         if not target_language:
             return
         
         source_message = str(reaction.message.content)
-        print(f'Translating {source_message!r} to {target_language} for {user}')
         target_message = translator.translate(source_message, target_language)
-        print(f"Translation is {target_message}")
         await reaction.message.channel.send(target_message)
 
     token = os.getenv('DISCORD_TOKEN')
