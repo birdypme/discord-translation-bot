@@ -98,9 +98,10 @@ def main():
         if not target_language:
             return
         
+        print(f'Translating for {user}, message {reaction.message.id} from {reaction.message.author}')
         source_message = str(reaction.message.content)
         target_message = translator.translate(source_message, target_language)
-        await reaction.message.channel.send(target_message)
+        await reaction.message.channel.send(target_message, reference=reaction.message)
 
     token = os.getenv('DISCORD_TOKEN')
     client.run(token)
